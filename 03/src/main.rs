@@ -50,7 +50,9 @@ fn main() {
     let content = read_input(&path_from_args());
 
     // Let's write an ad-hoc automata
-    let mut accum: u32 = 0;
+    let mut enabled: bool = true;
+    let mut accum_enabled: u32 = 0;
+    let mut accum_disabled: u32 = 0;
     let mut offset: usize = 0;
     while offset < content.len() {
         if content[offset..].starts_with("mul(") {
@@ -65,17 +67,29 @@ fn main() {
                     offset += advance;
                     if let Some(right) = operand {
                         if content[offset..].starts_with(")") {
-                            println!("Mul ({left}, {right})");
-                            accum += left * right;
+                            if enabled {
+                                accum_enabled += left * right;
+                            }
+                            else {
+                                accum_disabled += left * right;
+                            }
                         }
                     }
                 }
             }
+        }
+        else if content[offset..].starts_with("do()") {
+            enabled = true;
+            offset += 4;
+        }
+        else if content[offset..].starts_with("don't()") {
+            enabled = false;
+            offset += 7;
         }
         else {
             offset += 1;
         }
     }
 
-    println!("Result: {accum}");
+    println!("Part 1: {}, Part 2: {accum_enabled}", accum_enabled + accum_disabled);
 }
