@@ -1,0 +1,80 @@
+use std::env;
+use std::fs;
+
+//enum Level {
+//    First,
+//    Previous(i32),
+//}
+//
+//impl Level {
+//    fn compare(& mut self, other: i32) -> bool
+//    {
+//        match self {
+//            Level::First => true,
+//            Leve::Previous => (self.0 - other) <
+//        }
+//    }
+//}
+
+enum Direction {
+    Undecided,
+    Inc,
+    Dec,
+}
+
+struct Report {
+    dir: Direction,
+    values: Vec<i32>,
+}
+
+impl Report {
+
+    fn push(& mut self, level: i32) -> bool {
+        self.values.push(level);
+        if self.values.len() == 2 {
+            self.dir = if self.values[0] < self.values[1] {Direction::Inc}
+                       else {Direction::Dec}
+        }
+
+        if self.values.len() == 1 {
+            return true;
+        }
+        else {
+            let v = &self.values;
+            let diff = v[v.len() - 1] - v[v.len() - 2];
+            match self.dir {
+                Direction::Undecided => return true,
+                Direction::Inc => return diff >= 1 && diff < 4,
+                Direction::Dec => return diff <= -1 && diff > -4,
+            }
+        }
+    }
+
+}
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    let input_path: &str = &args[1];
+    println!("Processing inputs from '{input_path}'");
+
+    let content = fs::read_to_string(input_path)
+        .expect("Could not read file content.");
+
+    let mut safe = 0;
+    'reporter: for line in content.lines() {
+        // Report (line)
+        let mut report = Report {
+            dir: Direction::Undecided,
+            values: Vec::new(),
+        };
+        for level in line.split(" ") {
+            // Levels
+            if !report.push(level.parse().expect("Cannot parse to int")) {
+                continue 'reporter;
+            }
+        }
+        safe = safe + 1;
+    }
+
+    println!("Safe reports: {safe}");
+}
