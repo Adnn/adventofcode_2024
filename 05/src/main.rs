@@ -98,24 +98,37 @@ fn middle_page_failed(update: &str, ordering: &Vec<Page>) -> Option<Page>
 }
 
 
-fn middle_page(update: &str, map: &HashMap<Page, Rule>) -> Option<Page>
-{
-    let update_pages: Vec<Page> =
-        update.split(',').map(str::parse).map(Result::unwrap).collect();
+enum Sorted<T> {
+    Direct(T),
+    Recurse(T),
+}
 
+
+fn middle_page(update_pages: &Vec<Page>, map: &HashMap<Page, Rule>) -> Sorted<Page>
+{
     let mut pages_before = vec![update_pages[0]];
-    for page in &update_pages[1..] {
-        for prev in &pages_before {
+    for (this_idx, page) in update_pages[1..].iter().enumerate() {
+        for (prev_idx, prev) in pages_before.iter().enumerate() {
             if let Some(rule) = map.get(page) {
                 if rule.must_occur_before(*prev) {
-                    return None;
+                    // Insert the current value before the value it must occure before
+                    let mut pages_fixed = update_pages.clone();
+                    let this_value = pages_fixed.remove(this_idx+1);
+                    pages_fixed.insert(prev_idx, this_value);
+
+                    // There is for sure something idiomatic to replace this match
+                    match middle_page(&pages_fixed, map) {
+                        Sorted::Direct(page) => return Sorted::Recurse(page),
+                        Sorted::Recurse(page) => return Sorted::Recurse(page),
+                    }
+
                 }
             }
         }
         pages_before.push(*page);
     }
 
-    Some(update_pages[update_pages.len() / 2])
+    Sorted::Direct(update_pages[update_pages.len() / 2])
 }
 
 
@@ -128,7 +141,8 @@ fn main() {
     let ordering = produce_ordering(&hash_rules);
     println!("Ordering:\n{ordering:?}");
 
-    let mut accum = 0;
+    let mut accum_direct = 0;
+    let mut accum_recurse = 0;
     for line in content.lines() {
         // I could not find a way to return the iterators from remaining position
         if lines_processed != 0 {
@@ -136,11 +150,18 @@ fn main() {
             continue;
         }
 
+        println!("Handle line: '{line}'.");
         //if let Some(middle) = middle_page_failed(&line, &ordering) {
-        if let Some(middle) = middle_page(&line, &hash_rules) {
-            accum += middle;
+        let update_pages: Vec<Page> =
+            line.split(',').map(str::parse).map(Result::unwrap).collect();
+
+        match middle_page(&update_pages, &hash_rules) {
+            Sorted::Direct(midpage) => accum_direct += midpage,
+            Sorted::Recurse(midpage) => accum_recurse += midpage,
         }
     }
 
-    println!("Accumulated middle pages: {accum}");
+    println!(r#"Accumulated middle pages:
+        * direct: {accum_direct}
+        * fixed: {accum_recurse}"#);
 }
